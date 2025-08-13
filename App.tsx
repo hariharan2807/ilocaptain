@@ -3,10 +3,11 @@
  * https://github.com/facebook/react-native
  *
  * @format
+ * @flow strict-local
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
+import type {Node} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -15,104 +16,157 @@ import {
   Text,
   useColorScheme,
   View,
+  LogBox,
+  useWindowDimensions,
+  Platform,
+  Linking,
+  TouchableOpacity,
+  Image,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
+import 'react-native-gesture-handler';
 
 import {
   Colors,
-  DebugInstructions,
   Header,
   LearnMoreLinks,
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
+import LinearGradient from 'react-native-linear-gradient';
+import tailwind from '@tailwind';
+import {Provider} from 'react-redux';
+import {QueryClient, QueryClientProvider} from 'react-query';
+// import SQLite from 'react-native-sqlite-storage';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+import RootNavigation from './navigations/RootNavigation';
+import store from './store';
+import Toast from 'react-native-toast-message';
+import {toastConfig} from './constants/toastConfig';
+// import SplashScreen from 'react-native-splash-screen';
+import {primaryColorBG} from './constants/API_constants';
+import {Host, Portal} from 'react-native-portalize';
+import RNRestart from 'react-native-restart';
+import NetInfo from '@react-native-community/netinfo';
+import DeviceInfo from 'react-native-device-info';
+import {useNavigation} from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+const queryClient = new QueryClient();
+
+LogBox.ignoreLogs(['Setting a timer']);
+
+if (__DEV__ === false) {
+  console.log = () => {};
 }
 
-function App(): React.JSX.Element {
+// import tailwind from 'tailwind-rn';
+// import tailwind from './tailwind';
+/* $FlowFixMe[missing-local-annot] The type annotation(s) required by Flow's
+ * LTI update could not be added via codemod */
+
+const App: () => Node = () => {
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        setOffline(false);
+      } else {
+        setOffline(true);
+      }
+    });
+  }, []);
+  const [offline, setOffline] = useState(false);
+  const {width, height} = useWindowDimensions();
+
+  const openSettings = async () => {
+    if (Platform.OS === 'android') {
+      Linking.sendIntent('android.settings.DATA_ROAMING_SETTINGS');
+    } else {
+      Linking.openSettings();
+      Linking.sendIntent('android.settings.SETTINGS');
+    }
+  };
+
+  const appRestart = async () => {
+    RNRestart.Restart();
+  };
+
   const isDarkMode = useColorScheme() === 'dark';
+
+  // OneSignal Initialization
+
+  // requestPermission will show the native iOS or Android notification permission prompt.
+  // We recommend removing the following code and instead using an In-App Message to prompt for notification permission
+
+  // Method for listening for notification clicks
 
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
+    <GestureHandlerRootView style={[tailwind('')]}>
+      <SafeAreaView  style={[tailwind('h-full'),{}]}>
+        <StatusBar barStyle={'dark-content'} backgroundColor={'#FFDA00'} />
+        <Host>
+          <Provider store={store}>
+            <QueryClientProvider client={queryClient}>
+              {offline ? (
+                <View style={[tailwind('flex-1 items-center')]}>
+                  <Image
+                    resizeMode="contain"
+                    style={{width: width / 2, height: height / 2,tintColor:"#FFDA00"}} tintColor={'#FFDA00'}
+                    source={require('./assets/images/offline.png')}
+                  />
 
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+                  <Text
+                    style={[tailwind('font-bold text-lg text-primary mt-2')]}>
+                    NO INTERNET
+                  </Text>
+
+                  <Text
+                    style={[
+                      tailwind('font-medium text-base text-center mx-6'),
+                    ]}>
+                    Check your internet connection and try again
+                  </Text>
+                  <Text style={[tailwind('mt-3 font-semibold text-base')]}>
+                    PLEASE TURN ON INTERNET
+                  </Text>
+                  <View
+                    style={[
+                      tailwind(' flex-row justify-around mx-8 '),
+                      {top: 20},
+                    ]}>
+                    <TouchableOpacity
+                      style={[tailwind(' py-4 rounded-2xl bg-secondary'),{width:"48%"} ,]}
+                      onPress={appRestart}>
+                      <Text style={[tailwind('text-center   text-black')]}>
+                        Retry
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[tailwind('py-4 bg-red-500 rounded-2xl ml-2'),{width:"48%"}]}
+                      onPress={openSettings}>
+                      <Text style={[tailwind('text-center text-white')]}>
+                        Go to settings
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <RootNavigation />
+              )}
+            </QueryClientProvider>
+          </Provider>
+                  <Toast config={toastConfig} />
+
+        </Host>
+        {/* <View style={{bottom: '30%'}}> */}
+        {/* </View> */}
+      </SafeAreaView>
+     </GestureHandlerRootView>
+  );
+};
 
 export default App;
